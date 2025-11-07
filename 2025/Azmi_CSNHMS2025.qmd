@@ -1,0 +1,55 @@
+---
+title: "Estimating Prevalence Correctly"
+subtitle: "Complex Sampling in National Surveys"
+format:
+  clean-revealjs:
+    slide-number: true
+    lightbox: true
+    footer: "Complex Sampling Design in NHMS"
+author:
+  - name: Mohd Azmi Bin Suliman
+    orcid: 0000-0002-2125-3811
+    email: azmi.suliman@moh.gov.my
+    affiliations: Pusat Penyelidikan Penyakit Tak Berjangkit, Institut Kesihatan Umum
+date: 2025-11-16
+date-format: "dddd, DD MMMM YYYY"
+embed-resources: true
+editor:
+  markdown:
+    wrap: sentence
+execute:
+  echo: true
+---
+
+# Institutes for Public Health (Institut Kesihatan Umum)
+
+```{r}
+#| label: setup
+#| echo: false
+
+pacman::p_load(tidyverse)
+```
+
+```{css}
+#| echo: false
+
+code.sourceCode {
+  font-size: 1.0em;
+}
+```
+
+## Who are we?
+
+-   National Health Surveys: Conducts large-scale surveys like NHMS to monitor Malaysia’s population health.
+-   Public Health Research: Focuses on epidemiology, including non-communicable diseases, nutrition, communicable disease, both among general population and specific age group population.
+-   Policy Support: Provides data-driven evidence to guide national health planning and interventions.
+
+## A picture is worth a thousand words.
+
+![NHMS 2025, Field](Images/NHMS%20Older%20Person%20Field%201.jpg)
+
+::: {layout-nrow="2"}
+![NHMS 2025, Field](Images/NHMS%20Older%20Person%20Field%202.jpg)
+
+![NHMS 2025, Parliment](Images/NHMS%20Older%20Person%20Parlimen.jpg)
+:::
