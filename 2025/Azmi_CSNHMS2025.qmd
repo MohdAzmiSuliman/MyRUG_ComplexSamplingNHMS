@@ -21,13 +21,26 @@ execute:
   echo: true
 ---
 
-# Institutes for Public Health (Institut Kesihatan Umum)
+# Institutes for Public Health (Institut Kesihatan Umum - IKU)
 
 ```{r}
 #| label: setup
 #| echo: false
 
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse, arrow, summarytools)
+
+dosm_pop <- read_parquet("https://storage.dosm.gov.my/population/population_malaysia.parquet") %>% 
+  filter(date == as.Date("2025-01-01"), 
+         sex %in% c("male", "female"), 
+         age != "overall") %>% 
+  rename(pop_k = population)
+
+dosm_pop
+
+dosm_pop_poppyd <- dosm_pop %>% 
+  filter(ethnicity == "overall")
+
+dosm_pop_poppyd
 ```
 
 ```{css}
@@ -40,16 +53,163 @@ code.sourceCode {
 
 ## Who are we?
 
--   National Health Surveys: Conducts large-scale surveys like NHMS to monitor Malaysia’s population health.
--   Public Health Research: Focuses on epidemiology, including non-communicable diseases, nutrition, communicable disease, both among general population and specific age group population.
--   Policy Support: Provides data-driven evidence to guide national health planning and interventions.
+-   **National Health Surveys**: Conducts large-scale surveys like NHMS to monitor Malaysia’s population health.
+-   **Public Health Research**: Focuses on epidemiology, including non-communicable diseases, nutrition, communicable diseases, both among the general population and specific age groups.
+-   **Policy Support**: Provides data-driven evidence to guide national health planning and interventions.
 
-## A picture is worth a thousand words.
+## What we do?
 
-![NHMS 2025, Field](Images/NHMS%20Older%20Person%20Field%201.jpg)
+::: {layout-ncol="3"}
+![](Images/NHMS%20Older%20Person%20Field%201.jpg){fig-alt="NHMS 2025, Field" width="42%"}
 
-::: {layout-nrow="2"}
-![NHMS 2025, Field](Images/NHMS%20Older%20Person%20Field%202.jpg)
+![](Images/NHMS%20Older%20Person%20Field%202.jpg){fig-alt="NHMS 2025, Field" width="24%"}
 
-![NHMS 2025, Parliment](Images/NHMS%20Older%20Person%20Parlimen.jpg)
+![](Images/NHMS%20Older%20Person%20Parlimen.jpg){fig-alt="NHMS 2025, Parliment" width="24%"}
 :::
+
+## NHMS Reports
+
+<https://iku.nih.gov.my/nhms>
+
+![](Images/NHMS_IKUPage.png)
+
+# Samples vs. Population
+
+## The Sampling Problem
+
+![](Images/Group-13.jpg){width="90%"}
+
+## The Sampling Problem
+
+-   In describing a population, we often use a handful of **samples** rather than the **whole population**.
+
+-   Unfortunately, sample distribution may **differ** from the population - gender, ethnicity, age.
+
+-   Small studies typically limit their sample; clearly **define the target population** using **inclusive** and **exclusive criteria**.
+
+-   But national surveys, including health surveys, require the sample to **represent the general population** (e.g., adult population, older person population, maternal and child population).
+
+## Malaysian Population {.smaller}
+
+-   This is the Malaysian population pyramid.
+-   Source: <https://open.dosm.gov.my/data-catalogue/population_malaysia>
+
+```{r}
+#| echo: false
+
+pyr_df <- dosm_pop_poppyd %>%
+  mutate(age_start = readr::parse_number(age), 
+         age_fct   = fct_reorder(age, age_start), 
+         pop_sign  = if_else(sex == "male", -pop_k, pop_k))
+
+my_pyr_plot <- ggplot(pyr_df, aes(x = age_fct, y = pop_sign, fill = sex)) +
+  geom_col(width = 0.9) +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) scales::comma(abs(x)), 
+                     breaks = seq(-3500, 3500, by = 500), 
+                     limits = c(-1900, 1700), 
+                     expand = expansion(mult = c(0.02, 0.02))) +
+  labs(title = "Malaysia Population Pyramid, 2025", 
+       x = "Age group (years)", 
+       y = "Population (thousands)", 
+       fill = "Sex") +
+  theme_minimal(base_size = 13)
+
+my_pyr_plot
+```
+
+## The codes
+
+```{r}
+#| eval: false
+#| echo: true
+
+pacman::p_load(tidyverse, arrow)
+
+pyr_df <- read_parquet("https://storage.dosm.gov.my/population/population_malaysia.parquet") %>%
+  filter(date == as.Date("2025-01-01"), sex %in% c("male", "female"), 
+         age != "overall", ethnicity == "overall") %>%
+  mutate(pop_k = population, pop = if_else(sex == "male", -pop_k, pop_k), 
+         age0 = readr::parse_number(age), age = fct_reorder(age, age0))
+
+my_pyr_plot <- ggplot(pyr_df, aes(x = age, y = pop, fill = sex)) + 
+  geom_col(width = 0.9) + coord_flip() +
+  scale_y_continuous(limits = c(-2000, 2000), breaks = seq(-2000, 2000, 500), 
+                     labels = function(x) scales::comma(abs(x)), 
+                     expand = expansion(mult = c(0.02, 0.02))) +
+  labs(title = "Malaysia Population Pyramid, 2025", x = "Age group (years)", 
+       y = "Population (thousands)", fill = "Sex") +
+  theme_minimal(base_size = 13) + theme(panel.grid.minor = element_blank())
+
+my_pyr_plot
+```
+
+
+# Complex Sampling
+
+## What is Complex Sampling?
+
+-   **Structured selection** – Instead of simple random sampling, respondents are chosen through stratified and clustered sampling to ensure representation across diverse groups.
+
+-   **Unequal probabilities** – Some groups are oversampled (e.g., small states, older adults) to obtain reliable estimates, necessitating the use of sampling weights to correct for these differences.
+
+-   **Design-based inference** – Analysis must account for the survey’s design, including strata, clusters, and weights,so that standard errors and prevalence estimates accurately reflect the true population.
+
+## Why Complex Sampling?
+
+-   **Sampling**: We use a sample to estimate the population efficiently, saving time, cost, and resources while still capturing key characteristics.
+
+-   **Stratification**: Stratifying (by gender, ethnicity) ensures all important subgroups are represented and improves precision of estimates.
+
+-   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
+
+
+## Example - Diabetes among Malaysian (NHMS 2023)
+
+| **Category** | **Overall %** | **95% CI** | **Male %** | **95% CI** | **Female %** | **95% CI** |
+|:----------|----------:|:---------:|----------:|:---------:|----------:|:---------:|
+| **Malaysia** | 15.6 | 14.4–16.9 | 15.0 | 13.6–16.5 | 16.2 | 14.7–18.0 |
+| **Age Group** |  |  |  |  |  |  |
+| 18–29 | 3.2 | 2.2–4.6 | 3.7 | 2.2–6.1 | 2.6 | 1.7–4.1 |
+| 30–39 | 6.5 | 5.2–8.1 | 6.9 | 5.0–9.3 | 6.0 | 4.5–7.9 |
+| 40–49 | 15.2 | 13.2–17.4 | 13.7 | 11.1–16.8 | 16.8 | 14.2–19.8 |
+| 50–59 | 28.8 | 25.0–33.0 | 28.4 | 24.2–33.0 | 29.3 | 24.4–34.7 |
+| 60+ | 38.0 | 35.4–40.7 | 37.7 | 34.0–41.5 | 38.4 | 35.0–41.8 |
+| **Ethnicity** |  |  |  |  |  |  |
+| Malay | 16.2 | 15.1–17.4 | 15.5 | 14.1–17.1 | 16.9 | 15.4–18.4 |
+| Chinese | 15.1 | 11.6–19.5 | 14.8 | 11.2–19.3 | 15.5 | 11.0–21.3 |
+| Indian | 26.4 | 22.1–31.2 | 28.4 | 22.1–35.7 | 24.5 | 19.4–30.4 |
+| B. Sabah | 9.3 | 7.3–11.8 | 9.5 | 6.8–13.0 | 9.1 | 6.5–12.6 |
+| B. Sarawak | 17.2 | 13.0–22.3 | 14.9 | 10.4–21.0 | 19.3 | 14.3–25.6 |
+| Others | 10.2 | 7.5–13.6 | 10.0 | 6.6–14.8 | 10.6 | 6.4–17.0 |
+
+## Simulation
+
+-   Raw dataset need permission, so we will simulate here.
+-   The simulated dataset can be obtain from github site.
+-   <https://github.com/MohdAzmiSuliman/MyRUG_ComplexSamplingNHMS>
+-   In this simulation, we assumed that our sample had 1,100 respondent.
+    -   200 for each 18-29 yo, 30-39 yo, 40-49 yo, 50-59 yo and 300 for 60+ yo
+    -   40/60 ratio for male/female
+    -   65/20/15 ratio for malay/chinese/indian
+
+
+## 
+
+```{r}
+tibble(age_group = c("18-29","30-39","40-49","50-59","60+"), 
+       n_total = c(200, 200, 200, 200, 300)) %>% 
+  mutate(male = as.integer(round(.4*n_total)), 
+         female = n_total - male) %>% 
+  pivot_longer(male:female, names_to = "gender", values_to = "n_gender") %>% 
+  mutate(malay = as.integer(round(.65*n_gender)), 
+         chinese = as.integer(round(.2*n_gender)), 
+         indian = n_gender - malay - chinese) %>% 
+  pivot_longer(malay:indian, names_to = "ethnicity", values_to = "n_ethnic") %>% 
+  uncount(n_ethnic) %>% 
+  select(-starts_with("n_")) %>% 
+  group_by(age_group) %>% 
+  mutate(age = case_when(age_group == "18-29" ~ sample(18:29, n(), replace = T)))
+```
+
+
