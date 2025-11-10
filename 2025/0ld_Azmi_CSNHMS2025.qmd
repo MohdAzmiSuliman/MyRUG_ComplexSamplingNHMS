@@ -369,9 +369,7 @@ my_pyr_plot
 ## What is Complex Sampling?
 
 -   **Structured selection** – Instead of simple random sampling, respondents are chosen through stratified and clustered sampling to ensure representation across diverse groups.
-
 -   **Unequal probabilities** – Some groups are oversampled (e.g., small states, older adults) to obtain reliable estimates, necessitating the use of sampling weights to correct for these differences.
-
 -   **Design-based inference** – Analysis must account for the survey’s design, including strata, clusters, and weights,so that standard errors and prevalence estimates accurately reflect the true population.
 
 ## Why Complex Sampling?
@@ -385,7 +383,7 @@ my_pyr_plot
 ## Example - Diabetes among Malaysian (NHMS 2023)
 
 | **Category** | **Overall %** | **95% CI** | **Male %** | **95% CI** | **Female %** | **95% CI** |
-|:----------|----------:|:---------:|----------:|:---------:|----------:|:---------:|
+|:---|---:|:--:|---:|:--:|---:|:--:|
 | **Malaysia** | 15.6 | 14.4–16.9 | 15.0 | 13.6–16.5 | 16.2 | 14.7–18.0 |
 | **Age Group** |  |  |  |  |  |  |
 | 18–29 | 3.2 | 2.2–4.6 | 3.7 | 2.2–6.1 | 2.6 | 1.7–4.1 |

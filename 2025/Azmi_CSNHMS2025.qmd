@@ -1,6 +1,12 @@
 ---
 title: "Estimating Prevalence Correctly"
 subtitle: "Complex Sampling in National Surveys"
+format:
+  clean-revealjs:
+    show-notes: false
+    slide-number: true
+    footer: "Complex Sampling Design | NHMS | R Conference 2025"
+    lightbox: true
 author:
   - name: Dr Mohd Azmi Bin Suliman
     orcid: 0000-0002-2125-3811
@@ -9,12 +15,6 @@ author:
 date: 2025-11-16
 date-format: "dddd, DD MMMM YYYY"
 embed-resources: true
-format:
-  clean-revealjs:
-    show-notes: separate-page
-    slide-number: true
-    footer: "Complex Sampling Design | NHMS | R Conference 2025"
-    lightbox: true
 execute:
   echo: false
   warning: false
@@ -24,10 +24,10 @@ editor:
     wrap: sentence
 ---
 
+# Institut Kesihatan Umum (IKU)
+
 ```{r}
 #| label: setup
-#| echo: false
-
 ## setup
 
 set.seed(2025)
@@ -286,110 +286,185 @@ tbl_prop_prev <- tbl_merge(tbls = list(tbl_crude, tbl_weighted),
 code.sourceCode {font-size: 1.0em;}
 ```
 
----
+## Who are we?
 
-# Institut Kesihatan Umum (IKU)
+-   **National Health Surveys**: Conducts large-scale surveys like NHMS to monitor Malaysia’s population health.
+-   **Public Health Research**: Focuses on epidemiology, including non-communicable diseases, nutrition, communicable diseases, both among the general population and specific age groups.
+-   **Policy Support**: Provides data-driven evidence to guide national health planning and interventions.
 
-- Conducts the **National Health and Morbidity Survey (NHMS)**.  
-- Generates national evidence on **population health and NCDs**.  
-- Supports **policy and programme planning** with reliable data.
+## What we do?
 
-::: {.notes}
-IKU leads national health surveys that provide Malaysia’s core health statistics.  
-The NHMS is its flagship programme for population health surveillance and evidence-based policy support.
+::: {layout-ncol="3"}
+![](Images/NHMS%20Older%20Person%20Field%201.jpg){fig-alt="NHMS 2025, Field" width="42%"}
+
+![](Images/NHMS%20Older%20Person%20Field%202.jpg){fig-alt="NHMS 2025, Field" width="24%"}
+
+![](Images/NHMS%20Older%20Person%20Parlimen.jpg){fig-alt="NHMS 2025, Parliment" width="24%"}
 :::
 
----
+## NHMS Reports
+
+<https://iku.nih.gov.my/nhms>
+
+![](Images/NHMS_IKUPage_wide.png)
 
 # From Population to Sample
 
+## The Sampling Problem
+
 ![](Images/Group-13.jpg){width="90%"}
 
-- We study populations through **samples**, not by measuring everyone.  
-- Samples may differ in **age, sex, or ethnicity** distribution.  
-- National surveys must ensure **representativeness**, not just inclusion.
+## The Sampling Problem
 
-::: {.notes}
-Every survey uses samples to describe populations.  
-However, samples may not mirror the true population structure, leading to biased estimates if weighting isn’t applied.
-:::
+-   In describing a population, we often use a handful of **samples** rather than the **whole population**.
+-   Unfortunately, sample distribution may **differ** from the population - gender, ethnicity, age.
+-   Small studies typically limit their sample; clearly **define the target population** using **inclusive** and **exclusive criteria**.
+-   But national surveys, including health surveys, require the sample to **represent the general population** (e.g., adult population, older person population, maternal and child population).
 
----
+## Malaysian Population, 2025
 
-# Malaysian Population, 2025
+-   This is the Malaysian population pyramid.
+-   Source: <https://open.dosm.gov.my/data-catalogue/population_malaysia>
 
 ```{r}
 my_pyr_plot
 ```
 
-- Data: **Department of Statistics Malaysia (DOSM)**  
-- Shows Malaysia’s **age–sex structure**.
-
-::: {.notes}
-This is Malaysia’s official population pyramid (as of 2025).  
+::: notes
+This is Malaysia’s official population pyramid (as of 2025).\
 Note the large base of working-age adults and a growing older population.
 :::
 
----
+## The codes
 
-# What is Complex Sampling?
+```{r}
+#| eval: false
+#| echo: true
 
-- **Stratification** ensures key subgroups are represented.  
-- **Clustering** groups respondents for logistical efficiency.  
-- **Unequal selection probabilities** corrected with weights.  
-- Requires **design-based analysis** for valid inference.
+pacman::p_load(tidyverse, arrow)
 
-::: {.notes}
-Complex sampling combines stratification and clustering to achieve efficient, representative national surveys.  
-Since some groups are over- or under-sampled, weighting is needed to correct their contribution to population estimates.
+pyr_df <- read_parquet("https://storage.dosm.gov.my/population/population_malaysia.parquet") %>%
+  filter(date == as.Date("2025-01-01"), sex %in% c("male", "female"), 
+         age != "overall", ethnicity == "overall") %>%
+  mutate(pop_k = population, pop = if_else(sex == "male", -pop_k, pop_k), 
+         age0 = readr::parse_number(age), age = fct_reorder(age, age0))
+
+my_pyr_plot <- ggplot(pyr_df, aes(x = age, y = pop, fill = sex)) + 
+  geom_col(width = 0.9) + coord_flip() +
+  scale_y_continuous(limits = c(-2000, 2000), breaks = seq(-2000, 2000, 500), 
+                     labels = function(x) scales::comma(abs(x)), 
+                     expand = expansion(mult = c(0.02, 0.02))) +
+  labs(title = "Malaysia Population Pyramid, 2025", x = "Age group (years)", 
+       y = "Population (thousands)", fill = "Sex") +
+  theme_minimal(base_size = 13) + theme(panel.grid.minor = element_blank())
+
+my_pyr_plot
+```
+
+# Complex Sampling
+
+## What is Complex Sampling?
+
+-   **Structured selection** – Instead of simple random sampling, respondents are chosen through stratified and clustered sampling to ensure representation across diverse groups.
+-   **Unequal probabilities** – Some groups are oversampled (e.g., small states, older adults) to obtain reliable estimates, necessitating the use of sampling weights to correct for these differences.
+-   **Design-based inference** – Analysis must account for the survey’s design, including strata, clusters, and weights,so that standard errors and prevalence estimates accurately reflect the true population.
+
+::: notes
+-   Complex sampling combines stratification and clustering to achieve efficient, representative national surveys.
+-   Since some groups are over- or under-sampled, weighting is needed to correct their contribution to population estimates.
 :::
 
----
+## Why Complex Sampling?
 
-# Why Use Complex Sampling?
+-   **Sampling**: We use a sample to estimate the population efficiently, saving time, cost, and resources while still capturing key characteristics.
+-   **Stratification**: Stratifying (by gender, ethnicity) ensures all important subgroups are represented and improves precision of estimates.
+-   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
 
-- Covers **diverse populations** efficiently.  
-- Reduces **cost and fieldwork burden**.  
-- Enables **accurate national and state estimates**.
-
-::: {.notes}
+::: notes
 Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
 :::
 
----
+## Example (NHMS 2023) – Diabetes Prevalence
 
-# Example (NHMS 2023) – Diabetes Prevalence
+| **Category** | **Overall %** | **95% CI** | **Male %** | **95% CI** | **Female %** | **95% CI** |
+|:----------|----------:|:---------:|----------:|:---------:|----------:|:---------:|
+| **Malaysia** | 15.6 | 14.4–16.9 | 15.0 | 13.6–16.5 | 16.2 | 14.7–18.0 |
+| **Age Group** |  |  |  |  |  |  |
+| 18–29 | 3.2 | 2.2–4.6 | 3.7 | 2.2–6.1 | 2.6 | 1.7–4.1 |
+| 30–39 | 6.5 | 5.2–8.1 | 6.9 | 5.0–9.3 | 6.0 | 4.5–7.9 |
+| 40–49 | 15.2 | 13.2–17.4 | 13.7 | 11.1–16.8 | 16.8 | 14.2–19.8 |
+| 50–59 | 28.8 | 25.0–33.0 | 28.4 | 24.2–33.0 | 29.3 | 24.4–34.7 |
+| 60+ | 38.0 | 35.4–40.7 | 37.7 | 34.0–41.5 | 38.4 | 35.0–41.8 |
+| **Ethnicity** |  |  |  |  |  |  |
+| Malay | 16.2 | 15.1–17.4 | 15.5 | 14.1–17.1 | 16.9 | 15.4–18.4 |
+| Chinese | 15.1 | 11.6–19.5 | 14.8 | 11.2–19.3 | 15.5 | 11.0–21.3 |
+| Indian | 26.4 | 22.1–31.2 | 28.4 | 22.1–35.7 | 24.5 | 19.4–30.4 |
+| B. Sabah | 9.3 | 7.3–11.8 | 9.5 | 6.8–13.0 | 9.1 | 6.5–12.6 |
+| B. Sarawak | 17.2 | 13.0–22.3 | 14.9 | 10.4–21.0 | 19.3 | 14.3–25.6 |
+| Others | 10.2 | 7.5–13.6 | 10.0 | 6.6–14.8 | 10.6 | 6.4–17.0 |
 
-| **Age Group** | **% with DM** | **95% CI** |
-|:--------------|--------------:|:-----------:|
-| 18–29 | 3.2 | 2.2–4.6 |
-| 30–39 | 6.5 | 5.2–8.1 |
-| 40–49 | 15.2 | 13.2–17.4 |
-| 50–59 | 28.8 | 25.0–33.0 |
-| 60+ | 38.0 | 35.4–40.7 |
-
-::: {.notes}
-Diabetes prevalence rises sharply with age.  
+::: notes
+Diabetes prevalence rises sharply with age.
+Diabetes also common among the Indians.\
 These national estimates come from a complex survey design that accounts for stratification, clustering, and weighting.
 :::
 
----
+# Complex Sampling Demonstration
 
-# Simulation Dataset
+## Simulation
 
-- 1,100 synthetic respondents.  
-- Age groups: 18–29 to 60+.  
-- Sex ratio 40 % male / 60 % female.  
-- Ethnicity: 65 % Malay, 20 % Chinese, 15 % Indian.  
-- Diabetes prevalence ≈ 22 %.
+-   We try to mimic typical survey at field.
+    -   1,100 synthetic respondents.
+    -   Age groups: 18–29 to 60+.
+    -   Sex ratio 40 % male / 60 % female.
+    -   Ethnicity: 65 % Malay, 20 % Chinese, 15 % Indian.
+    -   Out of 1,100 respondents, 242 have DM
+-   The simulated dataset is available on GitHub: <https://github.com/MohdAzmiSuliman/MyRUG_ComplexSamplingNHMS>
 
-::: {.notes}
-To demonstrate post-stratification, we use a simulated dataset reflecting Malaysia’s demographic mix and realistic diabetes prevalence.
+::: notes
+-   To simplify the demonstration, a synthetic dataset was generated instead of using the original NHMS data.
+-   The simulated dataset is available on GitHub: <https://github.com/MohdAzmiSuliman/MyRUG_ComplexSamplingNHMS>
+-   This simulation contains 1,100 respondents, mimicking a typical survey at the field:
+    -   Age distribution: 200 each for 18–29, 30–39, 40–49, 50–59, and 300 for 60+ years
+    -   Sex ratio: 40% male, 60% female
+    -   Ethnicity ratio: 65% Malay, 20% Chinese, 15% Indian
+-   Diabetes status (DM): 242 respondents (22%) simulated as having diabetes
 :::
 
----
+## The codes
 
-# Crude Prevalence
+```{r}
+#| eval: false
+#| echo: true
+
+tibble(age_group = c("18-29","30-39","40-49","50-59","60+"), n_total = c(200, 200, 200, 200, 300)) %>% 
+  mutate(male = as.integer(round(.4*n_total)), female = n_total - male) %>% 
+  pivot_longer(male:female, names_to = "gender", values_to = "n_gender") %>% 
+  mutate(malay = as.integer(round(.65*n_gender)), chinese = as.integer(round(.2*n_gender)), 
+         indian = n_gender - malay - chinese) %>% 
+  pivot_longer(malay:indian, names_to = "ethnicity", values_to = "n_ethnic") %>% 
+  uncount(n_ethnic) %>% select(-starts_with("n_")) %>% group_by(age_group) %>% 
+  mutate(age = case_when(age_group == "18-29" ~ sample(18:29, n(), replace = T), 
+                         age_group == "30-39" ~ sample(30:39, n(), replace = T), 
+                         age_group == "40-49" ~ sample(40:49, n(), replace = T), 
+                         age_group == "50-59" ~ sample(50:59, n(), replace = T), 
+                         .default = sample(60:90, n(), replace = T))) %>% ungroup() %>% 
+  mutate(dm = c(rep(0, 50), rep(1, 2), rep(0, 15), rep(1, 1), rep(0, 11), rep(1, 1), rep(0, 76), 
+                rep(1, 2), rep(0, 23), rep(1, 1), rep(0, 17), rep(1, 1), rep(0, 48), rep(1, 4), rep(0, 15), 
+                rep(1, 1), rep(0, 11), rep(1, 1), rep(0, 73), rep(1, 5), rep(0, 23), rep(1, 1), rep(0, 16), 
+                rep(1, 2), rep(0, 45), rep(1, 7), rep(0, 14), rep(1, 2), rep(0, 9), rep(1, 3), rep(0, 65), 
+                rep(1, 13), rep(0, 20), rep(1, 4), rep(0, 13), rep(1, 5), rep(0, 37), rep(1, 15), 
+                rep(0, 12), rep(1, 4), rep(0, 6), rep(1, 6), rep(0, 55), rep(1, 23), rep(0, 18), 
+                rep(1, 6), rep(0, 9), rep(1, 9), rep(0, 49), rep(1, 29), rep(0, 16), rep(1, 8), rep(0, 7), 
+                rep(1, 11), rep(0, 72), rep(1, 45), rep(0, 23), rep(1, 13), rep(0, 10), rep(1, 17)), 
+         adw = 20) # adjusted design weight = 20, assume dw = 20 and RR = 100% for all
+```
+
+## Crude Proportion
+
+-   In epidemiology, prevalence refers to the proportion of a population that has a specific condition at a given time.
+-   Here, it reflects the proportion of individuals with diabetes mellitus (DM) in our simulated data.
+-   We know that 242 out of 1,100 respondents have DM — so the crude prevalence should be 22.0%, right?
 
 ```{r}
 dmsi_ds %>% 
@@ -397,51 +472,121 @@ dmsi_ds %>%
               digits = all_categorical() ~ c(0,1))
 ```
 
-- Crude prevalence ≈ 22 %.  
-- Does this represent Malaysia accurately?
-
-::: {.notes}
-Crude prevalence simply divides positive cases by total respondents.  
+::: notes
+Crude prevalence simply divides positive cases by total respondents.\
 If the sample is unbalanced by age or sex, this crude figure will be biased.
 :::
 
----
+## Respondent vs Target Population
 
-# Sample vs Population
+-   But those our respondent actually reflect our target population?
+-   Let look back at our Malaysian population distribution
+
+## Respondent vs Target Population
+
+-   But those our respondent actually reflect our target population?
+-   Let look back at our Malaysian population distribution
+
+```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
+my_pyr_plot
+```
+
+## Respondent vs Target Population
+
+-   But those our respondent actually reflect our target population?
+-   Let look back at our Malaysian population distribution
+
+```{r}
+#| fig-align: "right" 
+#| fig-width: 5
+#| fig-height: 3.5
+
+dmsi_pyr_plot
+```
+
+## Respondent vs Target Population
+
+-   But those our respondent actually reflect our target population?
+-   Let look back at our Malaysian population distribution
 
 ::: {layout-ncol="2"}
 ```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
+
 my_pyr_plot
 ```
+
 ```{r}
+#| fig-align: "right" 
+#| fig-width: 5
+#| fig-height: 3.5
+
 dmsi_pyr_plot
 ```
 :::
 
-- Sample has **more older and female** respondents.
+## Respondent vs Target Population
 
-::: {.notes}
-Compare the national (left) and sample (right) pyramids.  
-Older adults and females are over-represented — a common field sampling outcome.
+::: {layout-ncol="2"}
+```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
+
+my_pyr_plot
+```
+
+```{r}
+#| fig-align: "right" 
+#| fig-width: 5
+#| fig-height: 3.5
+
+dmsi_pyr_plot
+```
 :::
 
----
+-   Compared with the Malaysian population, our simulated respondents show:
+    -   A larger proportion of older adults
+    -   More females than males
 
-# Why Adjust Weights?
+## The Calibration - Post-stratification
 
-- To match sample structure to true population totals.  
-- Ensures estimates represent Malaysia accurately.
+::: {layout-ncol="2"}
+```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
 
-::: {.notes}
-Post-stratification (a type of calibration) re-weights the sample so that totals by age, sex, and ethnicity equal the official population counts.
+my_pyr_plot
+```
+
+```{r}
+#| fig-align: "right" 
+#| fig-width: 5
+#| fig-height: 3.5
+
+dmsi_pyr_plot
+```
 :::
 
----
+-   To match sample structure to true population totals.\
+-   Ensures estimates represent Malaysia accurately.
 
-# Post-Stratification
+::: notes
+-   Because our sample’s demographic structure differs from the Malaysian population, we need to adjust the sample weights so that our estimates correctly represent the national population.
+-   This adjustment process is called calibration in general survey methodology.
+-   After calibration (i.e., the post-stratification), estimates such as prevalence will better reflect the true population distribution, not just the sample composition.
+:::
 
-- Aligns weights by **age, sex, ethnicity**.  
-- Corrects for unequal sampling probabilities.
+## The Calibration - Post-stratification
+
+-   Aligns weights by **age, sex, ethnicity**.\
+-   Focuses on respondent count, national population by strata, and adjustment factor.
 
 ```{r}
 dmsi_ds_popfct %>% 
@@ -457,110 +602,124 @@ dmsi_ds_popfct %>%
              pop_fct="Post-strat Factor")
 ```
 
-::: {.notes}
-Post-stratification uses known demographic totals to adjust sampling weights.  
-Groups with post-strat factor > 1 are under-sampled and up-weighted; those < 1 are over-sampled and down-weighted.
-:::
+## Post-Strat Effect – Age
 
----
-
-# Post-Strat Effect – Age
-
-- Younger adults up-weighted (f > 1).  
-- Older adults down-weighted (f < 1).
+-   Younger adults up-weighted → weight ↑.\
+-   Older adults down-weighted → weight ↓.
 
 ```{r}
-dmsi_ds_popfct %>%
-  arrange(gender,age_group,ethnicity) %>%
-  filter(ethnicity=="malay") %>%
-  gt()
+dmsi_ds_popfct %>% 
+  arrange(gender, age_group, ethnicity) %>% 
+  filter(ethnicity == "malay") %>% 
+  select(age_group, everything()) %>% 
+  gt()%>% 
+  cols_label(age_group = "Age Group", gender = "Sex", 
+                 ethnicity = "Ethnicity", n_samp = "Sample Count (n)", 
+                 est_pop = "Init. Est. Pop.", 
+                 pop_k = "Malaysia Population ('000)", 
+                 pop_fct = "Post-strat. Factor")
 ```
 
-::: {.notes}
-The youngest age groups were under-represented in our sample, so their weights are inflated.  
+::: notes
+The youngest age groups were under-represented in our sample, so their weights are inflated.\
 This ensures their contribution matches the national age distribution.
 :::
 
----
+## Post-Strat Effect – Gender
 
-# Post-Strat Effect – Gender
-
-- Males under-sampled → weight ↑.  
-- Females over-sampled → weight ↓.
+-   Males under-sampled → weight ↑.\
+-   Females over-sampled → weight ↓.
 
 ```{r}
-dmsi_ds_popfct %>%
-  arrange(age_group,gender,ethnicity) %>%
-  filter(age_group %in% c("18-29","40-49","60+"),
-         ethnicity=="malay") %>%
-  gt()
+dmsi_ds_popfct %>% 
+  arrange(age_group, gender, ethnicity) %>% 
+  filter(age_group %in% c("18-29", "40-49", "60+"), 
+         ethnicity == "malay") %>% 
+  select(gender, everything()) %>% 
+  gt()%>% 
+  cols_label(age_group = "Age Group", gender = "Sex", 
+                 ethnicity = "Ethnicity", n_samp = "Sample Count (n)", 
+                 est_pop = "Init. Est. Pop.", 
+                 pop_k = "Malaysia Population ('000)", 
+                 pop_fct = "Post-strat. Factor")
 ```
 
-::: {.notes}
-Male respondents were fewer than expected.  
+::: notes
+Male respondents were fewer than expected.\
 Post-stratification increases male weights and reduces female weights so that the total mirrors the real population ratio.
 :::
 
----
+## Before and After Weighting
 
-# Before and After Weighting
+-   Weighting restores population structure.
+
+```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
+
+dmsi_pyr_plot
+```
+
+## Before and After Weighting
+
+-   Weighting restores population structure.
 
 ::: {layout-ncol="2"}
 ```{r}
+#| fig-align: "left" 
+#| fig-width: 5
+#| fig-height: 3.5
+
 dmsi_pyr_plot
 ```
+
 ```{r}
+#| fig-align: "right" 
+#| fig-width: 5
+#| fig-height: 3.5
+
 dmsiwt_pyr_plot
 ```
 :::
 
-- Weighting restores population structure.
-
-::: {.notes}
-The weighted pyramid (right) now mirrors Malaysia’s actual age–sex pattern, showing the success of post-stratification in correcting sample imbalance.
+::: notes
+-   Post-stratification weighting adjusts the sample to align with Malaysia’s actual age–sex distribution.
+-   The weighted pyramid (right) now mirrors Malaysia’s actual age–sex pattern, showing the success of post-stratification in correcting sample imbalance.
 :::
 
----
-
-# Corrected Prevalence (Weighted)
+## Corrected Prevalence
 
 ```{r}
 tbl_prop_prev
 ```
 
-- Weighted estimates reflect true population.  
-- Crude estimates reflect only sample.
-
-::: {.notes}
-Weighted prevalence now accounts for unequal selection probabilities.  
+::: notes
+Weighted prevalence now accounts for unequal selection probabilities.\
 This approach provides unbiased national estimates with correct standard errors.
 :::
 
----
-
 # Caveats in Complex Sampling
 
-- Needs a **known sampling frame**.  
-- Requires larger sample to offset design effect.  
-- **Intra-cluster correlation** reduces precision.  
-- Standard tests without weights → invalid results.
+-   Needs a **known sampling frame**.\
+-   Requires larger sample to offset design effect.\
+-   **Intra-cluster correlation** reduces precision.\
+-   Standard tests without weights → invalid results.
 
-::: {.notes}
-Complex sampling assumes known selection probabilities (e.g., list of houses from DOSM).  
-Design effects increase variance, so larger samples are needed.  
+::: notes
+Complex sampling assumes known selection probabilities (e.g., list of houses from DOSM).\
+Design effects increase variance, so larger samples are needed.\
 Ignoring weights leads to underestimated standard errors and misleading confidence intervals.
 :::
 
----
-
 # Summary
 
-- Complex sampling improves representativeness.  
-- Weighting corrects for unequal selection.  
-- Post-stratification aligns sample to population.  
-- Corrected estimates are valid and comparable nationally.
+-   Complex sampling improves representativeness.\
+-   Weighting corrects for unequal selection.\
+-   Post-stratification aligns sample to population.\
+-   Corrected estimates are valid and comparable nationally.
 
-::: {.notes}
-In national surveys like NHMS, complex sampling and calibration ensure data accurately represent Malaysia’s population.  
+::: notes
+In national surveys like NHMS, complex sampling and calibration ensure data accurately represent Malaysia’s population.\
 Understanding weighting and design effects is key to valid public health inference.
 :::
