@@ -1,108 +1,63 @@
 ---
 title: "Estimating Prevalence Correctly"
 subtitle: "Complex Sampling in National Surveys"
-format:
-  clean-revealjs:
-    slide-number: true
-    lightbox: true
-    footer: "Complex Sampling Design in NHMS"
 author:
-  - name: Mohd Azmi Bin Suliman
+  - name: Dr Mohd Azmi Bin Suliman
     orcid: 0000-0002-2125-3811
     email: azmi.suliman@moh.gov.my
     affiliations: Pusat Penyelidikan Penyakit Tak Berjangkit, Institut Kesihatan Umum
 date: 2025-11-16
 date-format: "dddd, DD MMMM YYYY"
 embed-resources: true
+format:
+  clean-revealjs:
+    show-notes: separate-page
+    slide-number: true
+    footer: "Complex Sampling Design | NHMS | R Conference 2025"
+    lightbox: true
+execute:
+  echo: false
+  warning: false
+  message: false
 editor:
   markdown:
     wrap: sentence
-execute:
-  echo: true
 ---
-
-# Institutes for Public Health (Institut Kesihatan Umum - IKU)
 
 ```{r}
 #| label: setup
 #| echo: false
 
-pacman::p_load(tidyverse, arrow, summarytools)
+## setup
 
-dosm_pop <- read_parquet("https://storage.dosm.gov.my/population/population_malaysia.parquet") %>% 
+set.seed(2025)
+pacman::p_load(tidyverse, arrow, summarytools, gtsummary, survey, srvyr, gt)
+
+####
+## DOSM Population
+####
+
+dosm_pop <- read_parquet(paste0("https://storage.dosm.gov.my/population/", 
+                                "population_malaysia.parquet")) %>% 
   filter(date == as.Date("2025-01-01"), 
          sex %in% c("male", "female"), 
          age != "overall") %>% 
   rename(pop_k = population)
 
-#dosm_pop
-
 dosm_pop_poppyd <- dosm_pop %>% 
   filter(ethnicity == "overall")
 
-#dosm_pop_poppyd
-```
-
-```{css}
-#| echo: false
-
-code.sourceCode {
-  font-size: 1.0em;
-}
-```
-
-## Who are we?
-
--   **National Health Surveys**: Conducts large-scale surveys like NHMS to monitor Malaysia’s population health.
--   **Public Health Research**: Focuses on epidemiology, including non-communicable diseases, nutrition, communicable diseases, both among the general population and specific age groups.
--   **Policy Support**: Provides data-driven evidence to guide national health planning and interventions.
-
-## What we do?
-
-::: {layout-ncol="3"}
-![](Images/NHMS%20Older%20Person%20Field%201.jpg){fig-alt="NHMS 2025, Field" width="42%"}
-
-![](Images/NHMS%20Older%20Person%20Field%202.jpg){fig-alt="NHMS 2025, Field" width="24%"}
-
-![](Images/NHMS%20Older%20Person%20Parlimen.jpg){fig-alt="NHMS 2025, Parliment" width="24%"}
-:::
-
-## NHMS Reports
-
-<https://iku.nih.gov.my/nhms>
-
-![](Images/NHMS_IKUPage.png)
-
-# Samples vs. Population
-
-## The Sampling Problem
-
-![](Images/Group-13.jpg){width="90%"}
-
-## The Sampling Problem
-
--   In describing a population, we often use a handful of **samples** rather than the **whole population**.
-
--   Unfortunately, sample distribution may **differ** from the population - gender, ethnicity, age.
-
--   Small studies typically limit their sample; clearly **define the target population** using **inclusive** and **exclusive criteria**.
-
--   But national surveys, including health surveys, require the sample to **represent the general population** (e.g., adult population, older person population, maternal and child population).
-
-## Malaysian Population {.smaller}
-
--   This is the Malaysian population pyramid.
--   Source: <https://open.dosm.gov.my/data-catalogue/population_malaysia>
-
-```{r}
-#| echo: false
+####
+## DOSM Population Pyramid
+####
 
 pyr_df <- dosm_pop_poppyd %>%
   mutate(age_start = readr::parse_number(age), 
-         age_fct   = fct_reorder(age, age_start), 
-         pop_sign  = if_else(sex == "male", -pop_k, pop_k))
+         age_fct = fct_reorder(age, age_start), 
+         pop_sign = if_else(sex == "male", -pop_k, pop_k))
 
-my_pyr_plot <- ggplot(pyr_df, aes(x = age_fct, y = pop_sign, fill = sex)) +
+my_pyr_plot <- ggplot(pyr_df, 
+                      aes(x = age_fct, y = pop_sign, fill = sex)) +
   geom_col(width = 0.9) +
   coord_flip() +
   scale_y_continuous(labels = function(x) scales::comma(abs(x)), 
@@ -113,103 +68,33 @@ my_pyr_plot <- ggplot(pyr_df, aes(x = age_fct, y = pop_sign, fill = sex)) +
        x = "Age group (years)", 
        y = "Population (thousands)", 
        fill = "Sex") +
-  theme_minimal(base_size = 13)
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
 
-my_pyr_plot
-```
-
-## The codes
-
-```{r}
-#| eval: false
-#| echo: true
-
-pacman::p_load(tidyverse, arrow)
-
-pyr_df <- read_parquet("https://storage.dosm.gov.my/population/population_malaysia.parquet") %>%
-  filter(date == as.Date("2025-01-01"), sex %in% c("male", "female"), 
-         age != "overall", ethnicity == "overall") %>%
-  mutate(pop_k = population, pop = if_else(sex == "male", -pop_k, pop_k), 
-         age0 = readr::parse_number(age), age = fct_reorder(age, age0))
-
-my_pyr_plot <- ggplot(pyr_df, aes(x = age, y = pop, fill = sex)) + 
-  geom_col(width = 0.9) + coord_flip() +
-  scale_y_continuous(limits = c(-2000, 2000), breaks = seq(-2000, 2000, 500), 
-                     labels = function(x) scales::comma(abs(x)), 
-                     expand = expansion(mult = c(0.02, 0.02))) +
-  labs(title = "Malaysia Population Pyramid, 2025", x = "Age group (years)", 
-       y = "Population (thousands)", fill = "Sex") +
-  theme_minimal(base_size = 13) + theme(panel.grid.minor = element_blank())
-
-my_pyr_plot
-```
-
-
-# Complex Sampling
-
-## What is Complex Sampling?
-
--   **Structured selection** – Instead of simple random sampling, respondents are chosen through stratified and clustered sampling to ensure representation across diverse groups.
-
--   **Unequal probabilities** – Some groups are oversampled (e.g., small states, older adults) to obtain reliable estimates, necessitating the use of sampling weights to correct for these differences.
-
--   **Design-based inference** – Analysis must account for the survey’s design, including strata, clusters, and weights,so that standard errors and prevalence estimates accurately reflect the true population.
-
-## Why Complex Sampling?
-
--   **Sampling**: We use a sample to estimate the population efficiently, saving time, cost, and resources while still capturing key characteristics.
-
--   **Stratification**: Stratifying (by gender, ethnicity) ensures all important subgroups are represented and improves precision of estimates.
-
--   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
-
-
-## Example - Diabetes among Malaysian (NHMS 2023)
-
-| **Category** | **Overall %** | **95% CI** | **Male %** | **95% CI** | **Female %** | **95% CI** |
-|:----------|----------:|:---------:|----------:|:---------:|----------:|:---------:|
-| **Malaysia** | 15.6 | 14.4–16.9 | 15.0 | 13.6–16.5 | 16.2 | 14.7–18.0 |
-| **Age Group** |  |  |  |  |  |  |
-| 18–29 | 3.2 | 2.2–4.6 | 3.7 | 2.2–6.1 | 2.6 | 1.7–4.1 |
-| 30–39 | 6.5 | 5.2–8.1 | 6.9 | 5.0–9.3 | 6.0 | 4.5–7.9 |
-| 40–49 | 15.2 | 13.2–17.4 | 13.7 | 11.1–16.8 | 16.8 | 14.2–19.8 |
-| 50–59 | 28.8 | 25.0–33.0 | 28.4 | 24.2–33.0 | 29.3 | 24.4–34.7 |
-| 60+ | 38.0 | 35.4–40.7 | 37.7 | 34.0–41.5 | 38.4 | 35.0–41.8 |
-| **Ethnicity** |  |  |  |  |  |  |
-| Malay | 16.2 | 15.1–17.4 | 15.5 | 14.1–17.1 | 16.9 | 15.4–18.4 |
-| Chinese | 15.1 | 11.6–19.5 | 14.8 | 11.2–19.3 | 15.5 | 11.0–21.3 |
-| Indian | 26.4 | 22.1–31.2 | 28.4 | 22.1–35.7 | 24.5 | 19.4–30.4 |
-| B. Sabah | 9.3 | 7.3–11.8 | 9.5 | 6.8–13.0 | 9.1 | 6.5–12.6 |
-| B. Sarawak | 17.2 | 13.0–22.3 | 14.9 | 10.4–21.0 | 19.3 | 14.3–25.6 |
-| Others | 10.2 | 7.5–13.6 | 10.0 | 6.6–14.8 | 10.6 | 6.4–17.0 |
-
-## Simulation
-
--   Raw dataset need permission, so we will simulate here.
--   The simulated dataset can be obtain from github site.
--   <https://github.com/MohdAzmiSuliman/MyRUG_ComplexSamplingNHMS>
--   In this simulation, we assumed that our sample had 1,100 respondent.
-    -   200 for each 18-29 yo, 30-39 yo, 40-49 yo, 50-59 yo and 300 for 60+ yo
-    -   40/60 ratio for male/female
-    -   65/20/15 ratio for malay/chinese/indian
-    -   the proportion of dm is almost similar to the NHMS findings.
-
-```{r}
-#| echo: false
+####
+## Simulation Dataset
+####
 
 dmsi_ds <- tibble(age_group = c("18-29","30-39","40-49","50-59","60+"), 
        n_total = c(200, 200, 200, 200, 300)) %>% 
   mutate(male = as.integer(round(.4*n_total)), 
          female = n_total - male) %>% 
-  pivot_longer(male:female, names_to = "gender", values_to = "n_gender") %>% 
+  pivot_longer(male:female, names_to = "gender", 
+               values_to = "n_gender") %>% 
   mutate(malay = as.integer(round(.65*n_gender)), 
          chinese = as.integer(round(.2*n_gender)), 
          indian = n_gender - malay - chinese) %>% 
-  pivot_longer(malay:indian, names_to = "ethnicity", values_to = "n_ethnic") %>% 
+  pivot_longer(malay:indian, names_to = "ethnicity", 
+               values_to = "n_ethnic") %>% 
   uncount(n_ethnic) %>% 
   select(-starts_with("n_")) %>% 
   group_by(age_group) %>% 
-  mutate(age = case_when(age_group == "18-29" ~ sample(18:29, n(), replace = T))) %>% 
+  mutate(age = case_when(
+    age_group == "18-29" ~ sample(18:29, n(), replace = T), 
+    age_group == "30-39" ~ sample(30:39, n(), replace = T), 
+    age_group == "40-49" ~ sample(40:49, n(), replace = T), 
+    age_group == "50-59" ~ sample(50:59, n(), replace = T), 
+    age_group == "60+" ~ sample(60:90, n(), replace = T))) %>% 
   ungroup() %>% 
   mutate(dm = c(rep(0, 50), rep(1, 2), # 18, male, malay
                 rep(0, 15), rep(1, 1), 
@@ -240,75 +125,442 @@ dmsi_ds <- tibble(age_group = c("18-29","30-39","40-49","50-59","60+"),
                 rep(0, 7), rep(1, 11), 
                 rep(0, 72), rep(1, 45), # 60, female
                 rep(0, 23), rep(1, 13), 
-                rep(0, 10), rep(1, 17)))
+                rep(0, 10), rep(1, 17)), 
+         dm = factor(dm, levels = c(0, 1), labels = c("No DM", "DM")), 
+         adw = 20) %>%  # assume all have same dw = 20, RR = 100%
+  mutate(my = "Overall", .before = 1)
+
+####
+## Sim Sample Pyramid
+####
+
+dosm_labels  <- c(paste(seq(0, 80, by = 5), 
+                        seq(4, 84, by = 5), sep = "-"), 
+                  "85+")
+
+dmsi_pyr <- dmsi_ds %>%
+  mutate(age_dosm = cut(age,
+                        breaks = c(seq(0, 85, by = 5), Inf),
+                        labels = dosm_labels,
+                        include.lowest = TRUE,
+                        right = FALSE)) %>%
+  count(age_dosm, gender, name = "n") %>%
+  complete(age_dosm = factor(dosm_labels, levels = dosm_labels),
+           gender = c("male", "female"),
+           fill = list(n = 0)) %>%    # fill empty age groups with 0
+  mutate(pop_sign = if_else(gender == "male", -n, n))
+
+dmsi_pyr_plot <- ggplot(dmsi_pyr, 
+                        aes(x = age_dosm, y = pop_sign, fill = gender)) +
+  geom_col(width = 0.9) +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) abs(x), 
+                     limits = c(-75, 75)) +
+  labs(title = "Simulated Sample Pyramid",
+       x = "Age group (years)",
+       y = "Sample size (count)",
+       fill = "Gender") +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
+
+####
+## Sampling Weight
+####
+
+age_map <- tribble(~age,   ~age_band, ~w, 
+                   "15-19","18-29",   2/5, "20-24","18-29",   1, 
+                   "25-29","18-29",   1, 
+                   "30-34","30-39",   1, "35-39","30-39",   1, 
+                   "40-44","40-49",   1, "45-49","40-49",   1, 
+                   "50-54","50-59",   1, "55-59","50-59",   1, 
+                   "60-64","60+",     1, "65-69","60+",     1, 
+                   "70-74","60+",     1, "75-79","60+",     1, 
+                   "80-84","60+",     1, "85+",  "60+",     1)
+
+dosm_adult_pop <- dosm_pop %>%
+  filter(sex %in% c("male","female"),
+         ethnicity %in% c("bumi_malay","chinese","indian")) %>%
+  mutate(ethnicity = recode(ethnicity, "bumi_malay" = "malay")) %>%
+  left_join(age_map, by = "age") %>%
+  filter(!is.na(age_band)) %>%
+  mutate(pop_k_contrib = pop_k * w) %>% # thousands of persons
+  group_by(sex, ethnicity, age_band) %>%
+  summarise(pop_k = sum(pop_k_contrib), .groups = "drop") %>%
+  mutate(age_band = factor(age_band, 
+                           levels = c("18-29","30-39","40-49","50-59","60+")), 
+         sex = factor(sex, levels = c("male", "female")), 
+         ethnicity = factor(ethnicity, 
+                            levels = c("malay", "chinese", "indian"))) %>%
+  arrange(sex, ethnicity, age_band)
+
+dmsi_ds_popfct <- dmsi_ds %>% 
+  as_survey_design(ids = 1, 
+                   weights = adw) %>% 
+  group_by(gender, ethnicity, age_group) %>% 
+  summarise(n_samp = n(), 
+            est_pop = survey_total(), 
+            .groups = "drop") %>% 
+  left_join(., dosm_adult_pop, 
+            by = join_by(gender == sex, 
+                         ethnicity, 
+                         age_group == age_band)) %>% 
+  select(-ends_with("_se")) %>% 
+  mutate(pop_fct = pop_k / est_pop,
+         gender = factor(gender, levels = c("male", "female")), 
+         ethnicity = factor(ethnicity, levels = c("malay", "chinese", "indian")))
+  
+dmsi_ds_final <- left_join(dmsi_ds, 
+          dmsi_ds_popfct %>% 
+            select(gender, ethnicity, age_group, pop_fct), 
+          by = join_by(age_group, gender, ethnicity)) %>% 
+  mutate(final_wt = adw * pop_fct)
+
+####
+## Complex Sampling Analysis
+####
+
+dmsi_svy <- dmsi_ds_final %>% 
+  as_survey_design(ids = 1, # In this simulation, no clustering
+                   strata = NULL, # In this simulation, no stratifying
+                   weights = final_wt)
+
+####
+## Weighted Sample Pyramid (Post-Stratified)
+####
+
+dmsiwt_pyr <- dmsi_ds_final %>%
+  mutate(age_dosm = cut(age,
+                        breaks = c(seq(0, 85, by = 5), Inf),
+                        labels = dosm_labels,
+                        include.lowest = TRUE,
+                        right = FALSE)) %>%
+  group_by(age_dosm, gender) %>%
+  summarise(weighted_n = sum(final_wt, na.rm = TRUE), .groups = "drop") %>%
+  complete(age_dosm = factor(dosm_labels, levels = dosm_labels),
+           gender = c("male", "female"),
+           fill = list(weighted_n = 0)) %>%
+  mutate(pop_sign = if_else(gender == "male", -weighted_n, weighted_n))
+
+dmsiwt_pyr_plot <- ggplot(dmsiwt_pyr, 
+                          aes(x = age_dosm, y = pop_sign, fill = gender)) +
+  geom_col(width = 0.9) +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) abs(round(x, 0)),
+                     limits = c(-max(dmsiwt_pyr$weighted_n),
+                                max(dmsiwt_pyr$weighted_n))) +
+  labs(title = "Weighted Sample Pyramid (Post-Stratified)",
+       x = "Age group (years)",
+       y = "Weighted count",
+       fill = "Gender") +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
+
+####
+## Prevalence Tables (Crude vs Weighted)
+####
+
+tbl_crude <- dmsi_ds %>% 
+  tbl_summary(include = c(my, gender, age_group), 
+              by = dm, 
+              digits = everything() ~ c(0, 1), 
+              percent = "row") %>% 
+  modify_spanning_header(all_stat_cols() ~ "**Sample Count (Proportion)**") %>% 
+  modify_column_hide(stat_1)
+
+tbl_weighted <- dmsi_svy %>% 
+  tbl_svysummary(include = c(my, gender, age_group), 
+                 by = dm, 
+                 digits = everything() ~ c(0, 1), 
+                 percent = "row") %>% 
+  modify_spanning_header(all_stat_cols() ~ "**Est. Pop. (Prevalence)**") %>% 
+  modify_column_hide(stat_1)
+
+tbl_prop_prev <- tbl_merge(tbls = list(tbl_crude, tbl_weighted), 
+                           tab_spanner = c("**Crude (Unweighted)**", 
+                                           "**Weighted (Post-Stratified)**")) %>%
+  modify_caption("**Comparison of Crude and Weighted Estimates of Diabetes Prevalence**")
+
 ```
 
+```{css}
+code.sourceCode {font-size: 1.0em;}
+```
+
+---
+
+# Institut Kesihatan Umum (IKU)
+
+- Conducts the **National Health and Morbidity Survey (NHMS)**.  
+- Generates national evidence on **population health and NCDs**.  
+- Supports **policy and programme planning** with reliable data.
+
+::: {.notes}
+IKU leads national health surveys that provide Malaysia’s core health statistics.  
+The NHMS is its flagship programme for population health surveillance and evidence-based policy support.
+:::
+
+---
+
+# From Population to Sample
+
+![](Images/Group-13.jpg){width="90%"}
+
+- We study populations through **samples**, not by measuring everyone.  
+- Samples may differ in **age, sex, or ethnicity** distribution.  
+- National surveys must ensure **representativeness**, not just inclusion.
+
+::: {.notes}
+Every survey uses samples to describe populations.  
+However, samples may not mirror the true population structure, leading to biased estimates if weighting isn’t applied.
+:::
+
+---
+
+# Malaysian Population, 2025
 
 ```{r}
-#| eval: false
-#| echo: false
-
-dmsi_ds %>% 
-  group_by(age_group, gender, ethnicity) %>%
-  summarise(n = n(), dm_prev = mean(dm, na.rm = TRUE)*100, 
-            n_dm = sum(dm == 1, na.rm = TRUE)) %>% 
-  arrange(age_group, desc(gender))
-
-dmsi_ds %>% 
-  group_by(age_group, gender) %>%
-  summarise(n = n(), dm_prev = mean(dm, na.rm = TRUE)*100, 
-            n_dm = sum(dm == 1, na.rm = TRUE)) %>% 
-  arrange(age_group, desc(gender))
-
-dmsi_ds %>% 
-  group_by(age_group) %>%
-  summarise(n = n(), dm_prev = mean(dm, na.rm = TRUE)*100, 
-            n_dm = sum(dm == 1, na.rm = TRUE)) %>% 
-  arrange(age_group)
-
-dmsi_ds %>% 
-  summarise(n = n(), dm_prev = mean(dm, na.rm = TRUE)*100, 
-            n_dm = sum(dm == 1, na.rm = TRUE))
+my_pyr_plot
 ```
 
+- Data: **Department of Statistics Malaysia (DOSM)**  
+- Shows Malaysia’s **age–sex structure**.
 
-## The codes
+::: {.notes}
+This is Malaysia’s official population pyramid (as of 2025).  
+Note the large base of working-age adults and a growing older population.
+:::
+
+---
+
+# What is Complex Sampling?
+
+- **Stratification** ensures key subgroups are represented.  
+- **Clustering** groups respondents for logistical efficiency.  
+- **Unequal selection probabilities** corrected with weights.  
+- Requires **design-based analysis** for valid inference.
+
+::: {.notes}
+Complex sampling combines stratification and clustering to achieve efficient, representative national surveys.  
+Since some groups are over- or under-sampled, weighting is needed to correct their contribution to population estimates.
+:::
+
+---
+
+# Why Use Complex Sampling?
+
+- Covers **diverse populations** efficiently.  
+- Reduces **cost and fieldwork burden**.  
+- Enables **accurate national and state estimates**.
+
+::: {.notes}
+Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
+:::
+
+---
+
+# Example (NHMS 2023) – Diabetes Prevalence
+
+| **Age Group** | **% with DM** | **95% CI** |
+|:--------------|--------------:|:-----------:|
+| 18–29 | 3.2 | 2.2–4.6 |
+| 30–39 | 6.5 | 5.2–8.1 |
+| 40–49 | 15.2 | 13.2–17.4 |
+| 50–59 | 28.8 | 25.0–33.0 |
+| 60+ | 38.0 | 35.4–40.7 |
+
+::: {.notes}
+Diabetes prevalence rises sharply with age.  
+These national estimates come from a complex survey design that accounts for stratification, clustering, and weighting.
+:::
+
+---
+
+# Simulation Dataset
+
+- 1,100 synthetic respondents.  
+- Age groups: 18–29 to 60+.  
+- Sex ratio 40 % male / 60 % female.  
+- Ethnicity: 65 % Malay, 20 % Chinese, 15 % Indian.  
+- Diabetes prevalence ≈ 22 %.
+
+::: {.notes}
+To demonstrate post-stratification, we use a simulated dataset reflecting Malaysia’s demographic mix and realistic diabetes prevalence.
+:::
+
+---
+
+# Crude Prevalence
 
 ```{r}
-#| eval: false
-#| echo: true
-
-tibble(age_group = c("18-29","30-39","40-49","50-59","60+"), 
-       n_total = c(200, 200, 200, 200, 300)) %>% 
-  mutate(male = as.integer(round(.4*n_total)), 
-         female = n_total - male) %>% 
-  pivot_longer(male:female, names_to = "gender", values_to = "n_gender") %>% 
-  mutate(malay = as.integer(round(.65*n_gender)), 
-         chinese = as.integer(round(.2*n_gender)), 
-         indian = n_gender - malay - chinese) %>% 
-  pivot_longer(malay:indian, names_to = "ethnicity", values_to = "n_ethnic") %>% 
-  uncount(n_ethnic) %>% 
-  select(-starts_with("n_")) %>% 
-  group_by(age_group) %>% 
-  mutate(age = case_when(age_group == "18-29" ~ sample(18:29, n(), replace = T))) %>% 
-  ungroup() %>% 
-  mutate(dm = c(rep(0, 50), rep(1, 2), rep(0, 15), rep(1, 1), rep(0, 11), rep(1, 1), 
-                rep(0, 76), rep(1, 2), rep(0, 23), rep(1, 1), rep(0, 17), rep(1, 1), 
-                rep(0, 48), rep(1, 4), rep(0, 15), rep(1, 1), rep(0, 11), rep(1, 1), 
-                rep(0, 73), rep(1, 5), rep(0, 23), rep(1, 1), rep(0, 16), rep(1, 2), 
-                rep(0, 45), rep(1, 7), rep(0, 14), rep(1, 2), rep(0, 9), rep(1, 3), 
-                rep(0, 65), rep(1, 13), rep(0, 20), rep(1, 4), rep(0, 13), rep(1, 5), 
-                rep(0, 37), rep(1, 15), rep(0, 12), rep(1, 4), rep(0, 6), rep(1, 6), 
-                rep(0, 55), rep(1, 23), rep(0, 18), rep(1, 6), rep(0, 9), rep(1, 9), 
-                rep(0, 49), rep(1, 29), rep(0, 16), rep(1, 8), rep(0, 7), rep(1, 11), 
-                rep(0, 72), rep(1, 45), rep(0, 23), rep(1, 13), rep(0, 10), rep(1, 17)))
+dmsi_ds %>% 
+  tbl_summary(include = dm,
+              digits = all_categorical() ~ c(0,1))
 ```
 
+- Crude prevalence ≈ 22 %.  
+- Does this represent Malaysia accurately?
 
-## Simulated Findings
+::: {.notes}
+Crude prevalence simply divides positive cases by total respondents.  
+If the sample is unbalanced by age or sex, this crude figure will be biased.
+:::
+
+---
+
+# Sample vs Population
+
+::: {layout-ncol="2"}
+```{r}
+my_pyr_plot
+```
+```{r}
+dmsi_pyr_plot
+```
+:::
+
+- Sample has **more older and female** respondents.
+
+::: {.notes}
+Compare the national (left) and sample (right) pyramids.  
+Older adults and females are over-represented — a common field sampling outcome.
+:::
+
+---
+
+# Why Adjust Weights?
+
+- To match sample structure to true population totals.  
+- Ensures estimates represent Malaysia accurately.
+
+::: {.notes}
+Post-stratification (a type of calibration) re-weights the sample so that totals by age, sex, and ethnicity equal the official population counts.
+:::
+
+---
+
+# Post-Stratification
+
+- Aligns weights by **age, sex, ethnicity**.  
+- Corrects for unequal sampling probabilities.
 
 ```{r}
-dmsi_ds %>% 
-  tbl_sum
+dmsi_ds_popfct %>% 
+  arrange(age_group, gender, ethnicity) %>% 
+  filter(age_group %in% c("18-29","40-49","60+"),
+         ethnicity != "chinese") %>% 
+  select(age_group, everything()) %>% 
+  gt() %>% 
+  cols_label(age_group="Age Group",gender="Sex",
+             ethnicity="Ethnicity",n_samp="Sample Count (n)",
+             est_pop="Init. Est. Pop.",
+             pop_k="Malaysia Population ('000)",
+             pop_fct="Post-strat Factor")
 ```
 
+::: {.notes}
+Post-stratification uses known demographic totals to adjust sampling weights.  
+Groups with post-strat factor > 1 are under-sampled and up-weighted; those < 1 are over-sampled and down-weighted.
+:::
+
+---
+
+# Post-Strat Effect – Age
+
+- Younger adults up-weighted (f > 1).  
+- Older adults down-weighted (f < 1).
+
+```{r}
+dmsi_ds_popfct %>%
+  arrange(gender,age_group,ethnicity) %>%
+  filter(ethnicity=="malay") %>%
+  gt()
+```
+
+::: {.notes}
+The youngest age groups were under-represented in our sample, so their weights are inflated.  
+This ensures their contribution matches the national age distribution.
+:::
+
+---
+
+# Post-Strat Effect – Gender
+
+- Males under-sampled → weight ↑.  
+- Females over-sampled → weight ↓.
+
+```{r}
+dmsi_ds_popfct %>%
+  arrange(age_group,gender,ethnicity) %>%
+  filter(age_group %in% c("18-29","40-49","60+"),
+         ethnicity=="malay") %>%
+  gt()
+```
+
+::: {.notes}
+Male respondents were fewer than expected.  
+Post-stratification increases male weights and reduces female weights so that the total mirrors the real population ratio.
+:::
+
+---
+
+# Before and After Weighting
+
+::: {layout-ncol="2"}
+```{r}
+dmsi_pyr_plot
+```
+```{r}
+dmsiwt_pyr_plot
+```
+:::
+
+- Weighting restores population structure.
+
+::: {.notes}
+The weighted pyramid (right) now mirrors Malaysia’s actual age–sex pattern, showing the success of post-stratification in correcting sample imbalance.
+:::
+
+---
+
+# Corrected Prevalence (Weighted)
+
+```{r}
+tbl_prop_prev
+```
+
+- Weighted estimates reflect true population.  
+- Crude estimates reflect only sample.
+
+::: {.notes}
+Weighted prevalence now accounts for unequal selection probabilities.  
+This approach provides unbiased national estimates with correct standard errors.
+:::
+
+---
+
+# Caveats in Complex Sampling
+
+- Needs a **known sampling frame**.  
+- Requires larger sample to offset design effect.  
+- **Intra-cluster correlation** reduces precision.  
+- Standard tests without weights → invalid results.
+
+::: {.notes}
+Complex sampling assumes known selection probabilities (e.g., list of houses from DOSM).  
+Design effects increase variance, so larger samples are needed.  
+Ignoring weights leads to underestimated standard errors and misleading confidence intervals.
+:::
+
+---
+
+# Summary
+
+- Complex sampling improves representativeness.  
+- Weighting corrects for unequal selection.  
+- Post-stratification aligns sample to population.  
+- Corrected estimates are valid and comparable nationally.
+
+::: {.notes}
+In national surveys like NHMS, complex sampling and calibration ensure data accurately represent Malaysia’s population.  
+Understanding weighting and design effects is key to valid public health inference.
+:::
