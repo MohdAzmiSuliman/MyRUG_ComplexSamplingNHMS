@@ -653,6 +653,7 @@ Post-stratification increases male weights and reduces female weights so that th
 
 -   Weighting restores population structure.
 
+::: {layout-ncol="2"}
 ```{r}
 #| fig-align: "left" 
 #| fig-width: 5
@@ -660,6 +661,8 @@ Post-stratification increases male weights and reduces female weights so that th
 
 dmsi_pyr_plot
 ```
+:::
+
 
 ## Before and After Weighting
 
