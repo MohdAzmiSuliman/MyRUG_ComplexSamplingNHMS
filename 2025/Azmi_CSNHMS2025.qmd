@@ -363,6 +363,16 @@ my_pyr_plot
 
 # Complex Sampling
 
+## Why Complex Sampling?
+
+-   **Sampling**: We use a sample to estimate the population efficiently, saving time, cost, and resources while still capturing key characteristics.
+-   **Stratification**: Stratifying (by gender, ethnicity) ensures all important subgroups are represented and improves precision of estimates.
+-   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
+
+::: notes
+Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
+:::
+
 ## What is Complex Sampling?
 
 -   **Structured selection** – Instead of simple random sampling, respondents are chosen through stratified and clustered sampling to ensure representation across diverse groups.
@@ -372,16 +382,6 @@ my_pyr_plot
 ::: notes
 -   Complex sampling combines stratification and clustering to achieve efficient, representative national surveys.
 -   Since some groups are over- or under-sampled, weighting is needed to correct their contribution to population estimates.
-:::
-
-## Why Complex Sampling?
-
--   **Sampling**: We use a sample to estimate the population efficiently, saving time, cost, and resources while still capturing key characteristics.
--   **Stratification**: Stratifying (by gender, ethnicity) ensures all important subgroups are represented and improves precision of estimates.
--   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
-
-::: notes
-Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
 :::
 
 ## Example (NHMS 2023) – Diabetes Prevalence
@@ -484,32 +484,7 @@ If the sample is unbalanced by age or sex, this crude figure will be biased.
 
 ## Respondent vs Target Population
 
--   But those our respondent actually reflect our target population?
--   Let look back at our Malaysian population distribution
-
-```{r}
-#| fig-align: "left" 
-#| fig-width: 5
-#| fig-height: 3.5
-my_pyr_plot
-```
-
-## Respondent vs Target Population
-
--   But those our respondent actually reflect our target population?
--   Let look back at our Malaysian population distribution
-
-```{r}
-#| fig-align: "right" 
-#| fig-width: 5
-#| fig-height: 3.5
-
-dmsi_pyr_plot
-```
-
-## Respondent vs Target Population
-
--   But those our respondent actually reflect our target population?
+-   But do our respondents actually reflect our target population?
 -   Let look back at our Malaysian population distribution
 
 ::: {layout-ncol="2"}
@@ -517,9 +492,20 @@ dmsi_pyr_plot
 #| fig-align: "left" 
 #| fig-width: 5
 #| fig-height: 3.5
-
 my_pyr_plot
 ```
+:::
+
+## Respondent vs Target Population
+
+-   But do our respondents actually reflect our target population?
+-   These  our simulated respondents.
+
+::: {layout-ncol="2"}
+-   1,100 synthetic respondents.
+-   Age groups: 18–29 to 60+., 200 for each group.
+-   Sex ratio 40 % male / 60 % female.
+-   Ethnicity: 65 % Malay, 20 % Chinese, 15 % Indian.
 
 ```{r}
 #| fig-align: "right" 
@@ -662,7 +648,6 @@ Post-stratification increases male weights and reduces female weights so that th
 dmsi_pyr_plot
 ```
 :::
-
 
 ## Before and After Weighting
 
