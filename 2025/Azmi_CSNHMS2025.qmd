@@ -3,7 +3,7 @@ title: "Estimating Prevalence Correctly"
 subtitle: "Complex Sampling in National Surveys"
 format:
   clean-revealjs:
-    show-notes: false
+    show-notes: separate-page
     slide-number: true
     footer: "Complex Sampling Design | NHMS | R Conference 2025"
     lightbox: true
@@ -329,8 +329,8 @@ my_pyr_plot
 ```
 
 ::: notes
-This is Malaysia’s official population pyramid (as of 2025).\
-Note the large base of working-age adults and a growing older population.
+-   This is Malaysia’s official population pyramid (as of 2025).
+-   Note the large base of working-age adults and a growing older population.
 :::
 
 ## The codes
@@ -368,7 +368,7 @@ my_pyr_plot
 -   **Clustering**: Clustering respondents by area makes data collection logistically practical and cost-efficient.
 
 ::: notes
-Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
+-   Complex designs make national health surveys operationally feasible and statistically robust, balancing representativeness and cost.
 :::
 
 ## What is Complex Sampling?
@@ -402,9 +402,9 @@ Complex designs make national health surveys operationally feasible and statisti
 | Others | 10.2 | 7.5–13.6 | 10.0 | 6.6–14.8 | 10.6 | 6.4–17.0 |
 
 ::: notes
-Diabetes prevalence rises sharply with age.
-Diabetes also common among the Indians.\
-These national estimates come from a complex survey design that accounts for stratification, clustering, and weighting.
+-   Diabetes prevalence rises sharply with age.
+-   Diabetes also common among the Indians.
+-   These national estimates come from a complex survey design that accounts for stratification, clustering, and weighting.
 :::
 
 # Complex Sampling Demonstration
@@ -471,46 +471,50 @@ dmsi_ds %>%
 ```
 
 ::: notes
-Crude prevalence simply divides positive cases by total respondents.\
-If the sample is unbalanced by age or sex, this crude figure will be biased.
+-   Crude prevalence simply divides positive cases by total respondents.
+-   If the sample is unbalanced by age or sex, this crude figure will be biased.
 :::
 
 ## Respondent vs Target Population
 
--   But those our respondent actually reflect our target population?
--   Let look back at our Malaysian population distribution
+-   But do our respondents actually reflect our target population?
+-   Lets compare our respondent and the Malaysian population distribution.
 
 ## Respondent vs Target Population
 
 -   But do our respondents actually reflect our target population?
--   Let look back at our Malaysian population distribution
+-   These our simulated respondents.
 
 ::: {layout-ncol="2"}
 ```{r}
 #| fig-align: "left" 
 #| fig-width: 5
 #| fig-height: 3.5
-my_pyr_plot
+
+dmsi_pyr_plot
 ```
-:::
 
-## Respondent vs Target Population
-
--   But do our respondents actually reflect our target population?
--   These  our simulated respondents.
-
-::: {layout-ncol="2"}
 -   1,100 synthetic respondents.
 -   Age groups: 18–29 to 60+., 200 for each group.
 -   Sex ratio 40 % male / 60 % female.
 -   Ethnicity: 65 % Malay, 20 % Chinese, 15 % Indian.
+:::
+
+## Respondent vs Target Population
+
+-   But do our respondents actually reflect our target population?
+-   Let look back at our Malaysian population distribution
+
+::: {layout-ncol="2"}
+-   Large base of working-age adults.
+-   Male slightly more than femal.
 
 ```{r}
 #| fig-align: "right" 
 #| fig-width: 5
 #| fig-height: 3.5
 
-dmsi_pyr_plot
+my_pyr_plot
 ```
 :::
 
@@ -522,7 +526,7 @@ dmsi_pyr_plot
 #| fig-width: 5
 #| fig-height: 3.5
 
-my_pyr_plot
+dmsi_pyr_plot
 ```
 
 ```{r}
@@ -530,7 +534,7 @@ my_pyr_plot
 #| fig-width: 5
 #| fig-height: 3.5
 
-dmsi_pyr_plot
+my_pyr_plot
 ```
 :::
 
@@ -546,7 +550,7 @@ dmsi_pyr_plot
 #| fig-width: 5
 #| fig-height: 3.5
 
-my_pyr_plot
+dmsi_pyr_plot
 ```
 
 ```{r}
@@ -554,11 +558,11 @@ my_pyr_plot
 #| fig-width: 5
 #| fig-height: 3.5
 
-dmsi_pyr_plot
+my_pyr_plot
 ```
 :::
 
--   To match sample structure to true population totals.\
+-   To match sample structure to true population totals.
 -   Ensures estimates represent Malaysia accurately.
 
 ::: notes
@@ -569,7 +573,7 @@ dmsi_pyr_plot
 
 ## The Calibration - Post-stratification
 
--   Aligns weights by **age, sex, ethnicity**.\
+-   Aligns weights by **age, sex, ethnicity**.
 -   Focuses on respondent count, national population by strata, and adjustment factor.
 
 ```{r}
@@ -588,7 +592,7 @@ dmsi_ds_popfct %>%
 
 ## Post-Strat Effect – Age
 
--   Younger adults up-weighted → weight ↑.\
+-   Younger adults up-weighted → weight ↑.
 -   Older adults down-weighted → weight ↓.
 
 ```{r}
@@ -605,13 +609,13 @@ dmsi_ds_popfct %>%
 ```
 
 ::: notes
-The youngest age groups were under-represented in our sample, so their weights are inflated.\
-This ensures their contribution matches the national age distribution.
+-   The youngest age groups were under-represented in our sample, so their weights are inflated.
+-   This ensures their contribution matches the national age distribution.
 :::
 
 ## Post-Strat Effect – Gender
 
--   Males under-sampled → weight ↑.\
+-   Males under-sampled → weight ↑.
 -   Females over-sampled → weight ↓.
 
 ```{r}
@@ -629,8 +633,8 @@ dmsi_ds_popfct %>%
 ```
 
 ::: notes
-Male respondents were fewer than expected.\
-Post-stratification increases male weights and reduces female weights so that the total mirrors the real population ratio.
+-   Male respondents were fewer than expected.
+-   Post-stratification increases male weights and reduces female weights so that the total mirrors the real population ratio.
 :::
 
 ## Before and After Weighting
@@ -676,36 +680,75 @@ dmsiwt_pyr_plot
 
 ## Corrected Prevalence
 
+-   After post-stratification, our sample now reflects Malaysia’s true age–sex–ethnicity structure.
+-   We can now apply complex sampling analysis to obtain correct prevalence estimates.
+-   In R, we use the `survey` package.
+-   The key step is to convert the dataset into a survey design object (svydesign) by specifying:
+    -   Cluster
+    -   Strata
+    -   Sampling weight
+
+::: notes
+-   The idea on this slide: post-stratification fixes the mismatch between the sample and the population. Once the weights are calibrated, we can run proper survey analysis. In national surveys, we must tell R about the sampling structure—clusters, strata, and weights—because these influence both the estimate and the standard error.
+-   The `survey` package is the base package for design-based inference in R.
+-   `svydesign()` constructs the design object. After that, all analysis is done through functions like `svymean`, `svyglm`, `svyciprop`, etc.
+-   This step is essential to get nationally representative numbers with correct confidence intervals.
+:::
+
+## Corrected Prevalence
+
+```{r}
+#| echo: true
+
+dmsi_des <- svydesign(id = ~1, # cluster (PSU)
+                      strata  = NULL, # define if applicable
+                      weights = ~final_wt, # sampling weight (ADW × PSF)
+                      data    = dmsi_ds_final)
+
+svymean(~dm, design = dmsi_des) # weighted prevalence
+mean(dmsi_ds_final$dm == "DM") # crude prevalence (unweighted)
+
+```
+
+::: notes
+-   This slide shows the practical difference between weighted and unweighted prevalence. svymean(\~dm) produces the prevalence after applying the design and post-stratification weights. This is what we use for national reporting.
+-   The crude mean uses equal weight for every respondent, which is not valid when the sampling probabilities differ.
+-   This comparison helps emphasise why we cannot rely on raw proportions from complex survey data.
+:::
+
+## Corrected Prevalence
+
 ```{r}
 tbl_prop_prev
 ```
 
 ::: notes
-Weighted prevalence now accounts for unequal selection probabilities.\
-This approach provides unbiased national estimates with correct standard errors.
+-   This table highlights the key message of the session: complex sampling adjusts both the estimate and the precision.
+-   Crude proportions ignore true sampling probabilities and population structure, often leading to biased estimates.
+-   Weighted, design-based estimates correct these issues and give results that can be generalised to the national population. The table also demonstrates how different age–sex patterns shift once weights are applied.
 :::
 
 # Caveats in Complex Sampling
 
--   Needs a **known sampling frame**.\
--   Requires larger sample to offset design effect.\
--   **Intra-cluster correlation** reduces precision.\
+-   Needs a **known sampling frame**.
+-   Requires larger sample to offset design effect.
+-   **Intra-cluster correlation** reduces precision.
 -   Standard tests without weights → invalid results.
 
 ::: notes
-Complex sampling assumes known selection probabilities (e.g., list of houses from DOSM).\
-Design effects increase variance, so larger samples are needed.\
-Ignoring weights leads to underestimated standard errors and misleading confidence intervals.
+-   Complex sampling assumes known selection probabilities (e.g., list of houses from DOSM).
+-   Design effects increase variance, so larger samples are needed.
+-   Ignoring weights leads to underestimated standard errors and misleading confidence intervals.
 :::
 
 # Summary
 
--   Complex sampling improves representativeness.\
--   Weighting corrects for unequal selection.\
--   Post-stratification aligns sample to population.\
+-   Complex sampling improves representativeness.
+-   Weighting corrects for unequal selection.
+-   Post-stratification aligns sample to population.
 -   Corrected estimates are valid and comparable nationally.
 
 ::: notes
-In national surveys like NHMS, complex sampling and calibration ensure data accurately represent Malaysia’s population.\
-Understanding weighting and design effects is key to valid public health inference.
+-   In national surveys like NHMS, complex sampling and calibration ensure data accurately represent Malaysia’s population.
+-   Understanding weighting and design effects is key to valid public health inference.
 :::
